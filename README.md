@@ -4,7 +4,7 @@ A private tutoring dashboard for tracking sessions, learner subjects, payment st
 
 ## Open the private cloud app
 
-<https://script.google.com/macros/s/AKfycbym58_3K-Rm0jUfFiqPD7KtHtI019VL7YwGKvOIjv-F4IqwuGtZPeQugI-CrVJ4NiUUfw/exec>
+<https://script.google.com/a/macros/mpsc.co.za/s/AKfycbym58_3K-Rm0jUfFiqPD7KtHtI019VL7YwGKvOIjv-F4IqwuGtZPeQugI-CrVJ4NiUUfw/exec>
 
 Sign in as `bjoseph@mpsc.co.za`. On the first visit, Google may ask the owner to authorize spreadsheet access. The app then creates `TutoringTracker Cloud Data` privately in that Google Drive.
 
