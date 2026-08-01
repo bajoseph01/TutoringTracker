@@ -1,2 +1,1 @@
-**/**
-!apps-script/**
+# The clasp rootDir is apps-script, so every file in that folder is deployable.

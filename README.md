@@ -1,6 +1,20 @@
 # Tutoring Tracker
 
-A private, local-first MVP for tracking tutoring sessions, learner subjects, payment status, and monthly income.
+A private tutoring dashboard for tracking sessions, learner subjects, payment status, prepaid credit, and monthly income. The hosted version syncs through the owner's Google account to a private Google Sheet.
+
+## Open the private cloud app
+
+<https://script.google.com/macros/s/AKfycbym58_3K-Rm0jUfFiqPD7KtHtI019VL7YwGKvOIjv-F4IqwuGtZPeQugI-CrVJ4NiUUfw/exec>
+
+Sign in as `bjoseph@mpsc.co.za`. On the first visit, Google may ask the owner to authorize spreadsheet access. The app then creates `TutoringTracker Cloud Data` privately in that Google Drive.
+
+### Move existing browser data into the cloud once
+
+1. Open the original browser version that contains the student records.
+2. Open the top-left menu and choose **Export backup**.
+3. Open the private cloud app above.
+4. Open its menu, choose **Import backup**, and select the exported JSON file.
+5. Confirm that the top bar says **Synced to Google** before closing the page.
 
 ## Run it
 
@@ -33,8 +47,9 @@ The QA journey starts with legacy-format learner data, verifies it survives migr
 - Prepaid learner credit with top-ups, lesson deductions, and deletion refunds
 - Monthly hours, earned revenue, and outstanding revenue totals
 - Payments overview separating earned lessons, outstanding fees, and unused credit
-- Browser-local persistence (no account or cloud service required)
+- Owner-only Google cloud sync backed by a private spreadsheet
+- Browser-local fallback plus manual JSON export/import backups
 
-## MVP limitation
+## Privacy and current limitations
 
-The data is stored only in this browser's local storage. Clearing browser storage or using another device will not carry the data across. Export/backup, sync, and invoices are candidates for the next version.
+The hosted app is restricted to the deploying school Google account. The public GitHub Pages build remains browser-local and does not cloud-sync. Existing browser data must be transferred once using Export/Import because browsers do not share local storage between different web addresses. Invoices and automated WhatsApp reminders are not included yet.
