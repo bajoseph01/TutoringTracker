@@ -88,14 +88,17 @@ h1, h2, p { margin-top: 0; }
 .summary-strip div { display: flex; min-width: 116px; flex-direction: column; justify-content: center; padding: 0 18px; border-right: 1px solid var(--line); }
 .summary-strip span { color: var(--ink-soft); font-size: 10px; text-transform: uppercase; letter-spacing: .08em; }
 .summary-strip strong { margin-top: 2px; font-family: "Newsreader", serif; font-size: 22px; font-weight: 600; }
+.summary-strip strong.projected { color: var(--maths); }
 .summary-strip strong.outstanding { color: var(--accent-dark); }
 
-.primary-button, .ghost-button, .danger-button { min-height: 42px; padding: 0 18px; border-radius: 8px; font-weight: 700; cursor: pointer; transition: transform .16s ease, box-shadow .16s ease, background .16s ease; }
+.primary-button, .ghost-button, .danger-button, .complete-button { min-height: 42px; padding: 0 18px; border-radius: 8px; font-weight: 700; cursor: pointer; transition: transform .16s ease, box-shadow .16s ease, background .16s ease; }
 .primary-button { border: 1px solid var(--accent); color: white; background: var(--accent); box-shadow: 0 8px 18px rgba(201,79,53,.18); }
 .primary-button span { margin-right: 7px; font-size: 19px; font-weight: 400; }
 .primary-button:hover { transform: translateY(-1px); background: var(--accent-dark); box-shadow: 0 10px 24px rgba(201,79,53,.25); }
 .ghost-button { border: 1px solid var(--line); background: var(--white); }
 .danger-button { border: 1px solid #ecc4b9; color: #ae3f2b; background: #fff2ee; }
+.complete-button { border: 1px solid #bcd8c6; color: #2f6947; background: #edf6ef; }
+.complete-button:hover { background: #dfeee3; }
 .hidden { display: none !important; }
 
 .calendar-legend { display: flex; justify-content: space-between; align-items: center; min-height: 43px; padding: 6px 28px; background: rgba(255,255,255,.32); border-bottom: 1px solid var(--line); }
@@ -108,6 +111,9 @@ h1, h2, p { margin-top: 0; }
 .payment-key { width: 8px; height: 8px; border-radius: 50%; border: 2px solid currentColor; }
 .payment-key.paid { color: var(--paid); background: var(--paid); }
 .payment-key.due { color: var(--due); background: transparent; }
+.lesson-key { display: inline-grid; place-items: center; width: 11px; height: 11px; border-radius: 3px; font-size: 8px; font-style: normal; line-height: 1; }
+.lesson-key.scheduled { border: 1px dashed var(--ink-soft); background: transparent; }
+.lesson-key.completed { color: white; background: var(--paid); }
 
 .calendar-frame { min-height: 0; display: grid; grid-template-rows: 31px 1fr; padding: 0 18px 18px; }
 .weekday-row { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); align-items: end; padding-bottom: 7px; }
@@ -126,9 +132,18 @@ h1, h2, p { margin-top: 0; }
 .session-bar::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: currentColor; }
 .session-bar.maths { color: #176784; background: var(--maths-soft); }
 .session-bar.afrikaans { color: #a74733; background: var(--afrikaans-soft); }
+.session-bar.scheduled { border: 1px dashed currentColor; padding: 4px 6px 4px 8px; opacity: .78; }
+.session-bar.completed { box-shadow: inset 0 0 0 1px rgba(79, 141, 105, .24); }
+.session-bar.cancelled { color: #6d7774; background: #e6e3dc; opacity: .6; }
+.session-bar.cancelled .session-name { text-decoration: line-through; }
 .session-main { min-width: 0; }
 .session-name { display: block; overflow: hidden; color: var(--ink); font-size: 11px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
 .session-time { display: block; margin-top: -1px; color: currentColor; font-size: 9px; font-weight: 600; }
+.session-signals { display: flex; align-items: center; gap: 4px; }
+.lesson-state { display: grid; place-items: center; width: 12px; height: 12px; border-radius: 50%; font-size: 9px; font-style: normal; font-weight: 800; line-height: 1; }
+.lesson-state.scheduled { color: var(--ink-soft); }
+.lesson-state.completed { color: white; background: var(--paid); }
+.lesson-state.cancelled { color: white; background: #7c8582; }
 .session-status { width: 8px; height: 8px; border-radius: 50%; }
 .session-status.paid, .session-status.prepaid { background: var(--paid); }
 .session-status.unpaid { border: 2px solid var(--due); background: transparent; }

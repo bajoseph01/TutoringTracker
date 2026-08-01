@@ -43,6 +43,9 @@ function loadState() {
 
 function migrateState(saved) {
   if (!saved || !Array.isArray(saved.students) || !Array.isArray(saved.sessions)) throw new Error("This is not a valid TutoringTracker backup");
+  const now = new Date();
+  const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  const validStatuses = new Set(["scheduled", "completed", "cancelled"]);
   return {
     students: saved.students.map((student) => ({
       ...student,
@@ -50,7 +53,11 @@ function migrateState(saved) {
       whatsapp: student.whatsapp || "",
       creditBalance: Number(student.creditBalance || 0)
     })),
-    sessions: saved.sessions.map((session) => ({ ...session, prepaidApplied: Number(session.prepaidApplied || 0) })),
+    sessions: saved.sessions.map((session) => ({
+      ...session,
+      status: validStatuses.has(session.status) ? session.status : session.date < todayKey ? "completed" : "scheduled",
+      prepaidApplied: Number(session.prepaidApplied || 0)
+    })),
     creditTransactions: Array.isArray(saved.creditTransactions) ? saved.creditTransactions : []
   };
 }
@@ -82,11 +89,15 @@ function renderCalendar() {
     const date = new Date(`${session.date}T12:00:00`);
     return date.getFullYear() === year && date.getMonth() === month;
   });
-  const earned = monthlySessions.reduce((sum, session) => sum + Number(session.fee), 0);
-  const outstanding = monthlySessions.filter((session) => session.payment === "unpaid").reduce((sum, session) => sum + Number(session.fee), 0);
-  const hours = monthlySessions.reduce((sum, session) => sum + Number(session.duration), 0);
+  const completedSessions = monthlySessions.filter((session) => session.status === "completed");
+  const projectedSessions = monthlySessions.filter((session) => session.status !== "cancelled");
+  const earned = completedSessions.reduce((sum, session) => sum + Number(session.fee), 0);
+  const projected = projectedSessions.reduce((sum, session) => sum + Number(session.fee), 0);
+  const outstanding = completedSessions.filter((session) => session.payment === "unpaid").reduce((sum, session) => sum + Number(session.fee), 0);
+  const hours = completedSessions.reduce((sum, session) => sum + Number(session.duration), 0);
   $("#hoursTotal").textContent = hours % 1 === 0 ? hours : hours.toFixed(1);
   $("#earnedTotal").textContent = money(earned);
+  $("#projectedTotal").textContent = money(projected);
   $("#outstandingTotal").textContent = money(outstanding);
 
   const cells = [];
@@ -116,9 +127,12 @@ function sessionBar(session) {
   const student = studentFor(session.studentId);
   const subjectClass = session.subject.toLowerCase();
   const duration = Number(session.duration) === 1 ? "1h" : `${session.duration}h`;
-  return `<button class="session-bar ${subjectClass}" type="button" data-session-id="${session.id}" title="Edit ${escapeHtml(student?.name || "Deleted student")}'s session">
+  const statusLabels = { scheduled: "Upcoming", completed: "Completed", cancelled: "Cancelled" };
+  const statusMarks = { scheduled: "&#9716;", completed: "&#10003;", cancelled: "&times;" };
+  const paymentLabel = session.payment === "unpaid" ? "Still to pay" : session.payment === "prepaid" ? "Covered by prepaid credit" : "Paid";
+  return `<button class="session-bar ${subjectClass} ${session.status}" type="button" data-session-id="${session.id}" title="${statusLabels[session.status]} · Edit ${escapeHtml(student?.name || "Deleted student")}'s session">
     <span class="session-main"><span class="session-name">${escapeHtml(student?.name || "Deleted student")}</span><span class="session-time">${session.time} · ${duration}</span></span>
-    <i class="session-status ${session.payment}" aria-label="${session.payment === "unpaid" ? "Still to pay" : session.payment === "prepaid" ? "Covered by prepaid credit" : "Paid"}"></i>
+    <span class="session-signals"><i class="lesson-state ${session.status}" aria-label="${statusLabels[session.status]}">${statusMarks[session.status]}</i><i class="session-status ${session.payment}" aria-label="${paymentLabel}"></i></span>
   </button>`;
 }
 
@@ -143,16 +157,17 @@ function renderStudents() {
 }
 
 function renderPayments() {
-  const unpaid = state.sessions.filter((session) => session.payment === "unpaid").sort((a, b) => a.date.localeCompare(b.date));
-  const paidTotal = state.sessions.filter((session) => session.payment !== "unpaid").reduce((sum, session) => sum + Number(session.fee), 0);
+  const completed = state.sessions.filter((session) => session.status === "completed");
+  const unpaid = completed.filter((session) => session.payment === "unpaid").sort((a, b) => a.date.localeCompare(b.date));
+  const paidTotal = completed.filter((session) => session.payment !== "unpaid").reduce((sum, session) => sum + Number(session.fee), 0);
   const unpaidTotal = unpaid.reduce((sum, session) => sum + Number(session.fee), 0);
   const creditHeld = state.students.reduce((sum, student) => sum + Number(student.creditBalance || 0), 0);
-  $("#paymentsSummary").innerHTML = `<div><span>Lesson value</span><strong>${money(paidTotal + unpaidTotal)}</strong></div><div><span>Covered / paid</span><strong>${money(paidTotal)}</strong></div><div><span>Outstanding</span><strong>${money(unpaidTotal)}</strong></div><div><span>Credit held</span><strong>${money(creditHeld)}</strong></div>`;
+  $("#paymentsSummary").innerHTML = `<div><span>Completed value</span><strong>${money(paidTotal + unpaidTotal)}</strong></div><div><span>Covered / paid</span><strong>${money(paidTotal)}</strong></div><div><span>Outstanding</span><strong>${money(unpaidTotal)}</strong></div><div><span>Credit held</span><strong>${money(creditHeld)}</strong></div>`;
   const creditedStudents = state.students.filter((student) => Number(student.creditBalance) > 0).sort((a, b) => b.creditBalance - a.creditBalance);
   $("#creditPanel").innerHTML = `<div class="section-kicker"><span>PREPAID BALANCES</span><small>${creditedStudents.length ? "Available for future lessons" : "No learner credit currently held"}</small></div>${creditedStudents.length ? `<div class="credit-list">${creditedStudents.map((student) => `<button type="button" data-topup-student="${student.id}"><span>${escapeHtml(student.name)}</span><strong>${money(student.creditBalance)}</strong></button>`).join("")}</div>` : ""}`;
   const list = $("#paymentList");
   if (!unpaid.length) {
-    list.innerHTML = `<div class="empty-state"><strong>You’re all settled</strong>There are no unpaid sessions at the moment.</div>`;
+    list.innerHTML = `<div class="empty-state"><strong>You’re all settled</strong>There are no unpaid completed lessons at the moment.</div>`;
     return;
   }
   list.innerHTML = unpaid.map((session) => {
@@ -193,6 +208,7 @@ function openSessionModal(date = isoDate(new Date()), studentId = "", sessionId 
   $("#sessionSubject").value = existing?.subject || studentFor(studentId)?.subject || "Maths";
   $("#sessionDuration").value = String(existing?.duration || 1);
   $("#sessionFee").value = existing?.fee ?? RATE;
+  $("#sessionStatus").value = existing?.status || defaultStatusForDate(existing?.date || date);
   $("#sessionPayment").value = existing?.payment || "unpaid";
   $("#sessionNote").value = existing?.note || "";
   $("#sessionRepeat").checked = false;
@@ -201,6 +217,7 @@ function openSessionModal(date = isoDate(new Date()), studentId = "", sessionId 
   $("#sessionRepeatUntil").required = false;
   syncRepeatUntil();
   $("#deleteSessionButton").classList.toggle("hidden", !existing);
+  $("#completeSessionButton").classList.toggle("hidden", !existing || existing.status !== "scheduled");
   $("#sessionModal").showModal();
 }
 
@@ -240,6 +257,7 @@ function saveSession(event) {
     subject: $("#sessionSubject").value,
     duration: Number($("#sessionDuration").value),
     fee: Number($("#sessionFee").value),
+    status: $("#sessionStatus").value,
     payment: $("#sessionPayment").value,
     prepaidApplied: 0,
     note: $("#sessionNote").value.trim()
@@ -251,7 +269,7 @@ function saveSession(event) {
     const duplicate = state.sessions.some((item) => item.id !== existing.id && item.studentId === baseSession.studentId && item.date === baseSession.date && item.time === baseSession.time);
     if (duplicate) { showToast("That student already has a lesson at this time"); return; }
     const refundable = existing.studentId === student.id ? Number(existing.prepaidApplied || 0) : 0;
-    if (baseSession.payment === "prepaid" && Number(student.creditBalance) + refundable < baseSession.fee) {
+    if (baseSession.status !== "cancelled" && baseSession.payment === "prepaid" && Number(student.creditBalance) + refundable < baseSession.fee) {
       showToast(`Only ${money(Number(student.creditBalance) + refundable)} prepaid credit is available`);
       return;
     }
@@ -267,7 +285,7 @@ function saveSession(event) {
     if (dates.length > 53) { showToast("Weekly bookings are limited to one year at a time"); return; }
     const uniqueDates = dates.filter((date) => !state.sessions.some((item) => item.studentId === baseSession.studentId && item.date === date && item.time === baseSession.time));
     if (!uniqueDates.length) { showToast("Those weekly lessons already exist"); return; }
-    if (!repeat && baseSession.payment === "prepaid" && Number(student.creditBalance) < baseSession.fee) {
+    if (!repeat && baseSession.status !== "cancelled" && baseSession.payment === "prepaid" && Number(student.creditBalance) < baseSession.fee) {
       showToast(`Only ${money(student.creditBalance)} prepaid credit is available`);
       return;
     }
@@ -275,7 +293,7 @@ function saveSession(event) {
     let prepaidCount = 0;
     let unpaidCount = 0;
     uniqueDates.forEach((date) => {
-      const session = { ...baseSession, id: uid("ses"), date, seriesId };
+      const session = { ...baseSession, id: uid("ses"), date, seriesId, status: repeat ? defaultStatusForDate(date) : baseSession.status };
       if (applyPayment(session, repeat)) prepaidCount += 1;
       if (session.payment === "unpaid") unpaidCount += 1;
       state.sessions.push(session);
@@ -294,7 +312,7 @@ function saveSession(event) {
 }
 
 function applyPayment(session, allowPrepaidFallback) {
-  if (session.payment !== "prepaid") return false;
+  if (session.payment !== "prepaid" || session.status === "cancelled") return false;
   const student = studentFor(session.studentId);
   if (student && Number(student.creditBalance) >= Number(session.fee)) {
     student.creditBalance = Number(student.creditBalance) - Number(session.fee);
@@ -321,6 +339,10 @@ function weeklyDates(startDate, endDate) {
     cursor.setDate(cursor.getDate() + 7);
   }
   return dates;
+}
+
+function defaultStatusForDate(dateString) {
+  return dateString < isoDate(new Date()) ? "completed" : "scheduled";
 }
 
 function syncRepeatUntil() {
@@ -539,6 +561,10 @@ $("#sessionForm").addEventListener("submit", saveSession);
 $("#studentForm").addEventListener("submit", saveStudent);
 $("#creditForm").addEventListener("submit", saveCredit);
 $("#deleteSessionButton").addEventListener("click", deleteSession);
+$("#completeSessionButton").addEventListener("click", () => {
+  $("#sessionStatus").value = "completed";
+  $("#sessionForm").requestSubmit();
+});
 $("#deleteStudentButton").addEventListener("click", deleteStudent);
 $("#sessionStudent").addEventListener("change", (event) => {
   const student = studentFor(event.target.value);
@@ -547,7 +573,10 @@ $("#sessionStudent").addEventListener("change", (event) => {
 $("#sessionDuration").addEventListener("change", (event) => {
   $("#sessionFee").value = Math.round(Number(event.target.value) * RATE);
 });
-$("#sessionDate").addEventListener("change", syncRepeatUntil);
+$("#sessionDate").addEventListener("change", (event) => {
+  syncRepeatUntil();
+  if (!$("#sessionId").value) $("#sessionStatus").value = defaultStatusForDate(event.target.value);
+});
 $("#sessionRepeat").addEventListener("change", (event) => {
   $("#repeatUntilLabel").classList.toggle("hidden", !event.target.checked);
   $("#sessionRepeatUntil").required = event.target.checked;

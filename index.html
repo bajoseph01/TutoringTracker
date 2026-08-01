@@ -66,7 +66,8 @@
           </div>
           <div class="summary-strip" aria-label="Monthly summary">
             <div><span>Hours taught</span><strong id="hoursTotal">0</strong></div>
-            <div><span>Month earned</span><strong id="earnedTotal">R0</strong></div>
+            <div><span>Earned so far</span><strong id="earnedTotal">R0</strong></div>
+            <div><span>Month projected</span><strong class="projected" id="projectedTotal">R0</strong></div>
             <div><span>Still to pay</span><strong class="outstanding" id="outstandingTotal">R0</strong></div>
           </div>
           <button class="primary-button" id="addSessionButton" type="button"><span>+</span> Add session</button>
@@ -77,6 +78,8 @@
           <div class="legend-items">
             <span><i class="dot maths"></i>Maths</span>
             <span><i class="dot afrikaans"></i>Afrikaans</span>
+            <span><i class="lesson-key scheduled"></i>Upcoming</span>
+            <span><i class="lesson-key completed">&#10003;</i>Done</span>
             <span><i class="payment-key paid"></i>Paid</span>
             <span><i class="payment-key due"></i>To pay</span>
           </div>
@@ -123,6 +126,7 @@
         <label>Subject<select id="sessionSubject" required><option value="Maths">Maths</option><option value="Afrikaans">Afrikaans</option></select></label>
         <label>Duration<select id="sessionDuration" required><option value="0.5">30 min</option><option value="1" selected>1 hour</option><option value="1.5">1.5 hours</option><option value="2">2 hours</option></select></label>
         <label>Fee (R)<input id="sessionFee" type="number" min="0" step="10" value="200" required></label>
+        <label>Lesson status<select id="sessionStatus" required><option value="scheduled">Scheduled / upcoming</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option></select></label>
         <label>Payment<select id="sessionPayment" required><option value="unpaid">Still to pay</option><option value="paid">Paid for this lesson</option><option value="prepaid">Use prepaid credit</option></select></label>
         <label class="full">Note <span>(optional)</span><input id="sessionNote" type="text" maxlength="80" placeholder="e.g. Fractions revision"></label>
         <label class="full repeat-control" id="repeatControl"><span class="check-row"><input id="sessionRepeat" type="checkbox"> Repeat this lesson weekly</span></label>
@@ -130,6 +134,7 @@
       </div>
       <div class="modal-actions">
         <button class="danger-button hidden" id="deleteSessionButton" type="button">Delete session</button>
+        <button class="complete-button hidden" id="completeSessionButton" type="button">&#10003; Mark completed</button>
         <span class="action-spacer"></span>
         <button class="ghost-button" type="button" data-close-modal="sessionModal">Cancel</button>
         <button class="primary-button" type="submit">Save session</button>

@@ -34,7 +34,7 @@ npm run check
 npm run qa
 ```
 
-The QA journey starts with legacy-format learner data, verifies it survives migration, then checks contacts, prepaid credit, weekly recurrence, duplicate prevention, payment totals, refunds, refresh persistence, and desktop/mobile renders.
+The QA journey starts with legacy-format learner data, verifies it survives migration, then checks lesson status, projected versus earned income, contacts, prepaid credit, weekly recurrence, duplicate prevention, payment totals, refunds, refresh persistence, and desktop/mobile renders.
 
 ## What works
 
@@ -43,6 +43,8 @@ The QA journey starts with legacy-format learner data, verifies it survives migr
 - Optional parent names and clickable WhatsApp contacts
 - Add, edit, and delete sessions by clicking a calendar date
 - Automatically create weekly lessons through a chosen end date
+- Mark lessons as scheduled, completed, or cancelled, with distinct calendar styling
+- Separate completed hours and earned income from projected monthly bookings
 - Paid / still-to-pay status with a one-click payment action
 - Prepaid learner credit with top-ups, lesson deductions, and deletion refunds
 - Monthly hours, earned revenue, and outstanding revenue totals

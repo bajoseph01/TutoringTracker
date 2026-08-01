@@ -83,12 +83,16 @@ try {
   await page.locator("#sessionRepeatUntil").fill("2026-09-02");
   await page.locator("#sessionForm button[type=submit]").click();
 
-  check(await page.locator("#earnedTotal").textContent() === "R600", "three August recurrences contribute R600 to the month");
-  check(await page.locator("#outstandingTotal").textContent() === "R0", "prepaid recurring sessions are not outstanding");
+  check(await page.locator("#earnedTotal").textContent() === "R0", "upcoming August recurrences are not counted as earned");
+  check(await page.locator("#projectedTotal").textContent() === "R600", "three August recurrences project R600 for the month");
+  check(await page.locator("#hoursTotal").textContent() === "0", "upcoming lessons are not counted as hours taught");
+  check(await page.locator("#outstandingTotal").textContent() === "R0", "upcoming lessons are not yet outstanding");
   check(await page.locator(".session-bar.afrikaans").count() === 4, "weekly Afrikaans sessions repeat across the visible calendar grid");
+  check(await page.locator(".session-bar.afrikaans.scheduled").count() === 4, "future recurring lessons are visibly marked as upcoming");
   const recurringState = await page.evaluate(() => JSON.parse(localStorage.getItem("tutoringTracker.v1")));
   check(recurringState.sessions.filter((session) => session.studentId !== "legacy-student" && session.seriesId).length === 4, "recurrence creates four independent dated sessions through 2 September");
   check(recurringState.students.find((student) => student.name === "Noah Petersen").creditBalance === 200, "four prepaid lessons deduct R800 and leave R200 credit");
+  check(recurringState.sessions.find((session) => session.id === "legacy-session").status === "completed", "past legacy lessons migrate as completed");
   await page.screenshot({ path: fileURLToPath(new URL("desktop-calendar.png", evidence)), fullPage: true });
 
   await page.locator("#addSessionButton").click();
@@ -104,10 +108,29 @@ try {
 
   await page.locator("#addSessionButton").click();
   await page.locator("#sessionStudent").selectOption({ label: "Noah Petersen" });
+  await page.locator("#sessionDate").fill("2026-08-14");
+  await page.locator("#sessionTime").fill("16:00");
+  await page.locator("#sessionStatus").selectOption("cancelled");
+  await page.locator("#sessionForm button[type=submit]").click();
+  check(await page.locator("#projectedTotal").textContent() === "R600", "cancelled lessons do not increase projected income");
+  check(await page.locator(".session-bar.cancelled").count() === 1, "cancelled lessons remain visibly recorded on the calendar");
+
+  await page.locator("#addSessionButton").click();
+  await page.locator("#sessionStudent").selectOption({ label: "Noah Petersen" });
   await page.locator("#sessionDate").fill("2026-08-13");
   await page.locator("#sessionTime").fill("16:00");
   await page.locator("#sessionForm button[type=submit]").click();
-  check(await page.locator("#outstandingTotal").textContent() === "R200", "per-lesson unpaid tracking still works beside prepaid credit");
+  check(await page.locator("#projectedTotal").textContent() === "R800", "an upcoming unpaid lesson increases projected income");
+  check(await page.locator("#earnedTotal").textContent() === "R0", "an upcoming unpaid lesson is still not earned");
+  check(await page.locator("#outstandingTotal").textContent() === "R0", "an upcoming unpaid lesson is not due yet");
+  const beforeCompletion = await page.evaluate(() => JSON.parse(localStorage.getItem("tutoringTracker.v1")));
+  const unpaidSession = beforeCompletion.sessions.find((session) => session.date === "2026-08-13" && session.time === "16:00");
+  await page.locator(`[data-session-id="${unpaidSession.id}"]`).click();
+  check(await page.locator("#sessionStatus").inputValue() === "scheduled", "upcoming lesson opens with scheduled status");
+  await page.locator("#completeSessionButton").click();
+  check(await page.locator("#earnedTotal").textContent() === "R200", "marking a lesson completed moves its value into earned income");
+  check(await page.locator("#hoursTotal").textContent() === "1", "marking a lesson completed adds its taught time");
+  check(await page.locator("#outstandingTotal").textContent() === "R200", "completed unpaid lesson becomes outstanding");
 
   await page.locator("#menuButton").click();
   await page.locator('[data-view="payments"]').click();
@@ -120,16 +143,17 @@ try {
   await page.screenshot({ path: fileURLToPath(new URL("desktop-payments.png", evidence)), fullPage: true });
 
   await page.reload({ waitUntil: "networkidle" });
-  check(await page.locator("#earnedTotal").textContent() === "R800", "sessions and totals persist after refresh");
+  check(await page.locator("#earnedTotal").textContent() === "R200", "completed earnings persist after refresh");
+  check(await page.locator("#projectedTotal").textContent() === "R800", "projected month total persists after refresh");
   check(await page.locator("#outstandingTotal").textContent() === "R0", "paid status persists after refresh");
   const preserved = await page.evaluate(() => JSON.parse(localStorage.getItem("tutoringTracker.v1")));
   const legacyStudent = preserved.students.find((student) => student.id === "legacy-student");
   const legacySession = preserved.sessions.find((session) => session.id === "legacy-session");
   check(legacyStudent.name === "Existing Learner" && legacyStudent.subject === "Maths", "legacy student values remain unchanged after new saves");
-  check(legacySession.fee === 200 && legacySession.payment === "paid" && legacySession.note === "Existing lesson", "legacy session values remain unchanged after new saves");
+  check(legacySession.fee === 200 && legacySession.payment === "paid" && legacySession.note === "Existing lesson" && legacySession.status === "completed", "legacy session values remain unchanged and gain completed status");
 
   page.once("dialog", (dialog) => dialog.accept());
-  await page.locator(".session-bar.prepaid, .session-bar.afrikaans").first().click();
+  await page.locator(".session-bar.afrikaans.scheduled").first().click();
   await page.locator("#deleteSessionButton").click();
   const refunded = await page.evaluate(() => JSON.parse(localStorage.getItem("tutoringTracker.v1")));
   check(refunded.students.find((student) => student.name === "Noah Petersen").creditBalance === 400, "deleting a prepaid lesson restores its R200 credit");
