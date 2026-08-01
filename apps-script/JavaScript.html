@@ -1,3 +1,4 @@
+<script>
 const STORAGE_KEY = "tutoringTracker.v1";
 const RATE = 200;
 const CLOUD_MODE = Boolean(window.google?.script?.run);
@@ -593,3 +594,5 @@ $("#paymentList").addEventListener("click", (event) => {
 document.addEventListener("keydown", (event) => { if (event.key === "Escape") closeDrawer(); });
 renderAll();
 if (CLOUD_MODE) hydrateCloudState();
+
+</script>

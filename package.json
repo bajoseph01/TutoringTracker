@@ -5,8 +5,9 @@
   "type": "module",
   "scripts": {
     "start": "node server.mjs",
-    "check": "node --check app.js && node --check server.mjs && node --check qa.mjs",
-    "qa": "node qa.mjs"
+    "check": "node --check app.js && node --check server.mjs && node --check qa.mjs && node --check scripts/build-apps-script.mjs && node scripts/check-cloud.mjs",
+    "qa": "node qa.mjs",
+    "build:gas": "node scripts/build-apps-script.mjs"
   },
   "devDependencies": {
     "playwright": "^1.62.1"

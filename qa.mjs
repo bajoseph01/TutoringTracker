@@ -1,5 +1,5 @@
 import { chromium } from "playwright";
-import { mkdir } from "node:fs/promises";
+import { mkdir, readFile } from "node:fs/promises";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
@@ -133,6 +133,25 @@ try {
   await page.locator("#deleteSessionButton").click();
   const refunded = await page.evaluate(() => JSON.parse(localStorage.getItem("tutoringTracker.v1")));
   check(refunded.students.find((student) => student.name === "Noah Petersen").creditBalance === 400, "deleting a prepaid lesson restores its R200 credit");
+
+  await page.locator("#menuButton").click();
+  const downloadPromise = page.waitForEvent("download");
+  await page.locator("#exportBackupButton").click();
+  const download = await downloadPromise;
+  const backupPath = await download.path();
+  const backup = JSON.parse(await readFile(backupPath, "utf8"));
+  check(download.suggestedFilename().startsWith("TutoringTracker-backup-"), "backup export uses a clear dated filename");
+  check(backup.format === "TutoringTrackerBackup" && backup.state.students.length === 2, "backup export contains the current tracker state");
+
+  await page.locator("#menuButton").click();
+  page.once("dialog", (dialog) => dialog.accept());
+  const chooserPromise = page.waitForEvent("filechooser");
+  await page.locator("#importBackupButton").click();
+  const chooser = await chooserPromise;
+  await chooser.setFiles(backupPath);
+  await page.waitForFunction(() => document.querySelector("#toast").textContent.includes("Backup imported"));
+  const imported = await page.evaluate(() => JSON.parse(localStorage.getItem("tutoringTracker.v1")));
+  check(imported.students.length === backup.state.students.length && imported.sessions.length === backup.state.sessions.length, "backup import restores students and sessions");
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.waitForTimeout(2700);
