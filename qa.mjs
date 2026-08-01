@@ -50,7 +50,7 @@ try {
   await page.locator("#sessionDate").fill("2026-08-12");
   await page.locator("#sessionTime").fill("15:30");
   await page.locator("#sessionDuration").selectOption("1.5");
-  await page.locator("#sessionFee").fill("300");
+  check(await page.locator("#sessionFee").inputValue() === "300", "duration automatically applies the R200 hourly rate");
   await page.locator("#sessionNote").fill("Taal revision");
   await page.locator("#sessionForm button[type=submit]").click();
 

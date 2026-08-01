@@ -298,6 +298,9 @@ $("#sessionStudent").addEventListener("change", (event) => {
   const student = studentFor(event.target.value);
   if (student && !$("#sessionId").value) $("#sessionSubject").value = student.subject;
 });
+$("#sessionDuration").addEventListener("change", (event) => {
+  $("#sessionFee").value = Math.round(Number(event.target.value) * RATE);
+});
 
 $("#calendarGrid").addEventListener("click", (event) => {
   const sessionButton = event.target.closest("[data-session-id]");
