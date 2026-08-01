@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#142d2b">
+  <title>Tutoring Tracker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <button class="icon-button menu-button" id="menuButton" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="sideMenu">
+        <span></span><span></span><span></span>
+      </button>
+      <a class="brand" href="#" aria-label="Tutoring Tracker home">
+        <span class="brand-mark">T</span>
+        <span><strong>Tutoring</strong><small>TRACKER</small></span>
+      </a>
+      <div class="topbar-meta">
+        <span class="save-state"><i></i> Saved on this device</span>
+        <button class="avatar" type="button" aria-label="Tutor profile">MJ</button>
+      </div>
+    </header>
+
+    <div class="drawer-scrim" id="drawerScrim"></div>
+    <aside class="drawer" id="sideMenu" aria-hidden="true">
+      <div class="drawer-head">
+        <div><span class="eyebrow">YOUR WORKSPACE</span><h2>Menu</h2></div>
+        <button class="icon-button close-button" id="closeMenuButton" type="button" aria-label="Close menu">&times;</button>
+      </div>
+      <nav class="drawer-nav" aria-label="Main navigation">
+        <button class="nav-item active" type="button" data-view="calendar"><span>01</span>Calendar</button>
+        <button class="nav-item" type="button" data-view="students"><span>02</span>Students</button>
+        <button class="nav-item" type="button" data-view="payments"><span>03</span>Payments</button>
+      </nav>
+      <div class="drawer-note">
+        <span>STANDARD RATE</span>
+        <strong>R200 <small>/ hour</small></strong>
+        <p>You can change the fee for an individual session.</p>
+      </div>
+    </aside>
+
+    <main>
+      <section class="view active" id="calendarView" data-view-panel="calendar">
+        <div class="calendar-toolbar">
+          <div>
+            <span class="eyebrow">AFTER-SCHOOL SESSIONS</span>
+            <div class="month-heading">
+              <button class="round-button" id="prevMonth" type="button" aria-label="Previous month">&#8592;</button>
+              <h1 id="monthTitle">August <em>2026</em></h1>
+              <button class="round-button" id="nextMonth" type="button" aria-label="Next month">&#8594;</button>
+            </div>
+          </div>
+          <div class="summary-strip" aria-label="Monthly summary">
+            <div><span>Hours taught</span><strong id="hoursTotal">0</strong></div>
+            <div><span>Month earned</span><strong id="earnedTotal">R0</strong></div>
+            <div><span>Still to pay</span><strong class="outstanding" id="outstandingTotal">R0</strong></div>
+          </div>
+          <button class="primary-button" id="addSessionButton" type="button"><span>+</span> Add session</button>
+        </div>
+
+        <div class="calendar-legend">
+          <button class="today-button" id="todayButton" type="button">Today</button>
+          <div class="legend-items">
+            <span><i class="dot maths"></i>Maths</span>
+            <span><i class="dot afrikaans"></i>Afrikaans</span>
+            <span><i class="payment-key paid"></i>Paid</span>
+            <span><i class="payment-key due"></i>To pay</span>
+          </div>
+        </div>
+
+        <div class="calendar-frame">
+          <div class="weekday-row" aria-hidden="true">
+            <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
+          </div>
+          <div class="calendar-grid" id="calendarGrid"></div>
+        </div>
+      </section>
+
+      <section class="view management-view" id="studentsView" data-view-panel="students">
+        <div class="page-heading">
+          <div><span class="eyebrow">YOUR LEARNERS</span><h1>Students</h1><p>Add learners once, then schedule them from the calendar.</p></div>
+          <button class="primary-button" id="addStudentButton" type="button"><span>+</span> Add student</button>
+        </div>
+        <div class="student-list" id="studentList"></div>
+      </section>
+
+      <section class="view management-view" id="paymentsView" data-view-panel="payments">
+        <div class="page-heading">
+          <div><span class="eyebrow">MONEY OVERVIEW</span><h1>Payments</h1><p>Every unpaid session, collected in one place.</p></div>
+        </div>
+        <div class="payments-summary" id="paymentsSummary"></div>
+        <div class="payment-list" id="paymentList"></div>
+      </section>
+    </main>
+  </div>
+
+  <dialog class="modal" id="sessionModal">
+    <form id="sessionForm">
+      <div class="modal-head">
+        <div><span class="eyebrow">LESSON DETAILS</span><h2 id="sessionModalTitle">Add a session</h2></div>
+        <button class="icon-button modal-close" type="button" data-close-modal="sessionModal" aria-label="Close">&times;</button>
+      </div>
+      <input type="hidden" id="sessionId">
+      <div class="form-grid">
+        <label class="full">Student<select id="sessionStudent" required></select></label>
+        <label>Date<input id="sessionDate" type="date" required></label>
+        <label>Start time<input id="sessionTime" type="time" value="15:00" required></label>
+        <label>Subject<select id="sessionSubject" required><option value="Maths">Maths</option><option value="Afrikaans">Afrikaans</option></select></label>
+        <label>Duration<select id="sessionDuration" required><option value="0.5">30 min</option><option value="1" selected>1 hour</option><option value="1.5">1.5 hours</option><option value="2">2 hours</option></select></label>
+        <label>Fee (R)<input id="sessionFee" type="number" min="0" step="10" value="200" required></label>
+        <label>Payment<select id="sessionPayment" required><option value="unpaid">Still to pay</option><option value="paid">Paid</option></select></label>
+        <label class="full">Note <span>(optional)</span><input id="sessionNote" type="text" maxlength="80" placeholder="e.g. Fractions revision"></label>
+      </div>
+      <div class="modal-actions">
+        <button class="danger-button hidden" id="deleteSessionButton" type="button">Delete session</button>
+        <span class="action-spacer"></span>
+        <button class="ghost-button" type="button" data-close-modal="sessionModal">Cancel</button>
+        <button class="primary-button" type="submit">Save session</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="modal small-modal" id="studentModal">
+    <form id="studentForm">
+      <div class="modal-head">
+        <div><span class="eyebrow">LEARNER DETAILS</span><h2 id="studentModalTitle">Add a student</h2></div>
+        <button class="icon-button modal-close" type="button" data-close-modal="studentModal" aria-label="Close">&times;</button>
+      </div>
+      <input type="hidden" id="studentId">
+      <div class="form-grid">
+        <label class="full">Student name<input id="studentName" type="text" maxlength="50" placeholder="e.g. Mia Jacobs" required></label>
+        <label class="full">Main subject<select id="studentSubject" required><option value="Maths">Maths</option><option value="Afrikaans">Afrikaans</option></select></label>
+      </div>
+      <div class="modal-actions">
+        <button class="danger-button hidden" id="deleteStudentButton" type="button">Delete student</button>
+        <span class="action-spacer"></span>
+        <button class="ghost-button" type="button" data-close-modal="studentModal">Cancel</button>
+        <button class="primary-button" type="submit">Save student</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="app.js"></script>
+</body>
+</html>
