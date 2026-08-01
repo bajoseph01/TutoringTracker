@@ -91,9 +91,10 @@
 
       <section class="view management-view" id="paymentsView" data-view-panel="payments">
         <div class="page-heading">
-          <div><span class="eyebrow">MONEY OVERVIEW</span><h1>Payments</h1><p>Every unpaid session, collected in one place.</p></div>
+          <div><span class="eyebrow">MONEY OVERVIEW</span><h1>Payments</h1><p>Unpaid lessons and prepaid learner credit, kept separate and clear.</p></div>
         </div>
         <div class="payments-summary" id="paymentsSummary"></div>
+        <div class="credit-panel" id="creditPanel"></div>
         <div class="payment-list" id="paymentList"></div>
       </section>
     </main>
@@ -113,8 +114,10 @@
         <label>Subject<select id="sessionSubject" required><option value="Maths">Maths</option><option value="Afrikaans">Afrikaans</option></select></label>
         <label>Duration<select id="sessionDuration" required><option value="0.5">30 min</option><option value="1" selected>1 hour</option><option value="1.5">1.5 hours</option><option value="2">2 hours</option></select></label>
         <label>Fee (R)<input id="sessionFee" type="number" min="0" step="10" value="200" required></label>
-        <label>Payment<select id="sessionPayment" required><option value="unpaid">Still to pay</option><option value="paid">Paid</option></select></label>
+        <label>Payment<select id="sessionPayment" required><option value="unpaid">Still to pay</option><option value="paid">Paid for this lesson</option><option value="prepaid">Use prepaid credit</option></select></label>
         <label class="full">Note <span>(optional)</span><input id="sessionNote" type="text" maxlength="80" placeholder="e.g. Fractions revision"></label>
+        <label class="full repeat-control" id="repeatControl"><span class="check-row"><input id="sessionRepeat" type="checkbox"> Repeat this lesson weekly</span></label>
+        <label class="full hidden" id="repeatUntilLabel">Repeat until<input id="sessionRepeatUntil" type="date"></label>
       </div>
       <div class="modal-actions">
         <button class="danger-button hidden" id="deleteSessionButton" type="button">Delete session</button>
@@ -134,13 +137,35 @@
       <input type="hidden" id="studentId">
       <div class="form-grid">
         <label class="full">Student name<input id="studentName" type="text" maxlength="50" placeholder="e.g. Mia Jacobs" required></label>
-        <label class="full">Main subject<select id="studentSubject" required><option value="Maths">Maths</option><option value="Afrikaans">Afrikaans</option></select></label>
+        <label>Main subject<select id="studentSubject" required><option value="Maths">Maths</option><option value="Afrikaans">Afrikaans</option></select></label>
+        <label>Parent name <span>(optional)</span><input id="studentParent" type="text" maxlength="60" placeholder="e.g. Sarah Jacobs"></label>
+        <label class="full">Parent WhatsApp <span>(optional)</span><input id="studentWhatsapp" type="tel" maxlength="24" placeholder="e.g. 082 123 4567"></label>
       </div>
       <div class="modal-actions">
         <button class="danger-button hidden" id="deleteStudentButton" type="button">Delete student</button>
         <span class="action-spacer"></span>
         <button class="ghost-button" type="button" data-close-modal="studentModal">Cancel</button>
         <button class="primary-button" type="submit">Save student</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="modal small-modal" id="creditModal">
+    <form id="creditForm">
+      <div class="modal-head">
+        <div><span class="eyebrow">PREPAID CREDIT</span><h2>Add credit</h2><p id="creditStudentName"></p></div>
+        <button class="icon-button modal-close" type="button" data-close-modal="creditModal" aria-label="Close">&times;</button>
+      </div>
+      <input type="hidden" id="creditStudentId">
+      <div class="form-grid">
+        <label>Amount received (R)<input id="creditAmount" type="number" min="10" step="10" value="200" required></label>
+        <label>Date received<input id="creditDate" type="date" required></label>
+        <label class="full">Note <span>(optional)</span><input id="creditNote" type="text" maxlength="80" placeholder="e.g. Four lessons prepaid"></label>
+      </div>
+      <div class="modal-actions">
+        <span class="action-spacer"></span>
+        <button class="ghost-button" type="button" data-close-modal="creditModal">Cancel</button>
+        <button class="primary-button" type="submit">Add credit</button>
       </div>
     </form>
   </dialog>

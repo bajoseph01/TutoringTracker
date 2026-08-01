@@ -3,7 +3,8 @@ const RATE = 200;
 
 const defaultState = {
   students: [],
-  sessions: []
+  sessions: [],
+  creditTransactions: []
 };
 
 let state = loadState();
@@ -26,7 +27,18 @@ const studentFor = (id) => state.students.find((student) => student.id === id);
 function loadState() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    if (saved && Array.isArray(saved.students) && Array.isArray(saved.sessions)) return saved;
+    if (saved && Array.isArray(saved.students) && Array.isArray(saved.sessions)) {
+      return {
+        students: saved.students.map((student) => ({
+          ...student,
+          parentName: student.parentName || "",
+          whatsapp: student.whatsapp || "",
+          creditBalance: Number(student.creditBalance || 0)
+        })),
+        sessions: saved.sessions.map((session) => ({ ...session, prepaidApplied: Number(session.prepaidApplied || 0) })),
+        creditTransactions: Array.isArray(saved.creditTransactions) ? saved.creditTransactions : []
+      };
+    }
   } catch (error) {
     console.warn("Could not load saved tutoring data", error);
   }
@@ -95,7 +107,7 @@ function sessionBar(session) {
   const duration = Number(session.duration) === 1 ? "1h" : `${session.duration}h`;
   return `<button class="session-bar ${subjectClass}" type="button" data-session-id="${session.id}" title="Edit ${escapeHtml(student?.name || "Deleted student")}'s session">
     <span class="session-main"><span class="session-name">${escapeHtml(student?.name || "Deleted student")}</span><span class="session-time">${session.time} · ${duration}</span></span>
-    <i class="session-status ${session.payment}" aria-label="${session.payment === "paid" ? "Paid" : "Still to pay"}"></i>
+    <i class="session-status ${session.payment}" aria-label="${session.payment === "unpaid" ? "Still to pay" : session.payment === "prepaid" ? "Covered by prepaid credit" : "Paid"}"></i>
   </button>`;
 }
 
@@ -107,20 +119,26 @@ function renderStudents() {
   }
   list.innerHTML = [...state.students].sort((a, b) => a.name.localeCompare(b.name)).map((student) => {
     const sessions = state.sessions.filter((session) => session.studentId === student.id);
+    const parentDetails = student.parentName || student.whatsapp
+      ? `${student.parentName ? escapeHtml(student.parentName) : "Parent"}${student.whatsapp ? ` · <a href="${whatsappHref(student.whatsapp)}" target="_blank" rel="noopener">${escapeHtml(student.whatsapp)}</a>` : ""}`
+      : "No parent contact added";
     return `<article class="student-row">
       <span class="initials">${initials(student.name)}</span>
-      <div><h3>${escapeHtml(student.name)}</h3><p>${sessions.length} session${sessions.length === 1 ? "" : "s"} recorded</p></div>
-      <span class="subject-pill ${student.subject.toLowerCase()}">${student.subject}</span>
-      <div class="row-actions"><button class="mini-button" type="button" data-edit-student="${student.id}">Edit</button><button class="mini-button" type="button" data-book-student="${student.id}">Book</button></div>
+      <div><h3>${escapeHtml(student.name)}</h3><p>${parentDetails}</p><p>${sessions.length} session${sessions.length === 1 ? "" : "s"} recorded</p></div>
+      <div class="student-meta"><span class="subject-pill ${student.subject.toLowerCase()}">${student.subject}</span><span class="credit-badge">Credit ${money(student.creditBalance)}</span></div>
+      <div class="row-actions"><button class="mini-button" type="button" data-edit-student="${student.id}">Edit</button><button class="mini-button" type="button" data-topup-student="${student.id}">+ Credit</button><button class="mini-button" type="button" data-book-student="${student.id}">Book</button></div>
     </article>`;
   }).join("");
 }
 
 function renderPayments() {
   const unpaid = state.sessions.filter((session) => session.payment === "unpaid").sort((a, b) => a.date.localeCompare(b.date));
-  const paidTotal = state.sessions.filter((session) => session.payment === "paid").reduce((sum, session) => sum + Number(session.fee), 0);
+  const paidTotal = state.sessions.filter((session) => session.payment !== "unpaid").reduce((sum, session) => sum + Number(session.fee), 0);
   const unpaidTotal = unpaid.reduce((sum, session) => sum + Number(session.fee), 0);
-  $("#paymentsSummary").innerHTML = `<div><span>All-time earned</span><strong>${money(paidTotal + unpaidTotal)}</strong></div><div><span>Received</span><strong>${money(paidTotal)}</strong></div><div><span>Outstanding</span><strong>${money(unpaidTotal)}</strong></div>`;
+  const creditHeld = state.students.reduce((sum, student) => sum + Number(student.creditBalance || 0), 0);
+  $("#paymentsSummary").innerHTML = `<div><span>Lesson value</span><strong>${money(paidTotal + unpaidTotal)}</strong></div><div><span>Covered / paid</span><strong>${money(paidTotal)}</strong></div><div><span>Outstanding</span><strong>${money(unpaidTotal)}</strong></div><div><span>Credit held</span><strong>${money(creditHeld)}</strong></div>`;
+  const creditedStudents = state.students.filter((student) => Number(student.creditBalance) > 0).sort((a, b) => b.creditBalance - a.creditBalance);
+  $("#creditPanel").innerHTML = `<div class="section-kicker"><span>PREPAID BALANCES</span><small>${creditedStudents.length ? "Available for future lessons" : "No learner credit currently held"}</small></div>${creditedStudents.length ? `<div class="credit-list">${creditedStudents.map((student) => `<button type="button" data-topup-student="${student.id}"><span>${escapeHtml(student.name)}</span><strong>${money(student.creditBalance)}</strong></button>`).join("")}</div>` : ""}`;
   const list = $("#paymentList");
   if (!unpaid.length) {
     list.innerHTML = `<div class="empty-state"><strong>You’re all settled</strong>There are no unpaid sessions at the moment.</div>`;
@@ -166,6 +184,11 @@ function openSessionModal(date = isoDate(new Date()), studentId = "", sessionId 
   $("#sessionFee").value = existing?.fee ?? RATE;
   $("#sessionPayment").value = existing?.payment || "unpaid";
   $("#sessionNote").value = existing?.note || "";
+  $("#sessionRepeat").checked = false;
+  $("#repeatControl").classList.toggle("hidden", Boolean(existing));
+  $("#repeatUntilLabel").classList.add("hidden");
+  $("#sessionRepeatUntil").required = false;
+  syncRepeatUntil();
   $("#deleteSessionButton").classList.toggle("hidden", !existing);
   $("#sessionModal").showModal();
 }
@@ -176,16 +199,30 @@ function openStudentModal(studentId = "") {
   $("#studentId").value = existing?.id || "";
   $("#studentName").value = existing?.name || "";
   $("#studentSubject").value = existing?.subject || "Maths";
+  $("#studentParent").value = existing?.parentName || "";
+  $("#studentWhatsapp").value = existing?.whatsapp || "";
   $("#deleteStudentButton").classList.toggle("hidden", !existing);
   $("#studentModal").showModal();
   setTimeout(() => $("#studentName").focus(), 0);
 }
 
+function openCreditModal(studentId) {
+  const student = studentFor(studentId);
+  if (!student) return;
+  $("#creditStudentId").value = student.id;
+  $("#creditStudentName").textContent = `${student.name} currently has ${money(student.creditBalance)} available.`;
+  $("#creditAmount").value = RATE;
+  $("#creditDate").value = isoDate(new Date());
+  $("#creditNote").value = "";
+  $("#creditModal").showModal();
+  setTimeout(() => $("#creditAmount").focus(), 0);
+}
+
 function saveSession(event) {
   event.preventDefault();
-  const id = $("#sessionId").value || uid("ses");
-  const session = {
-    id,
+  const existingId = $("#sessionId").value;
+  const existing = existingId ? state.sessions.find((item) => item.id === existingId) : null;
+  const baseSession = {
     studentId: $("#sessionStudent").value,
     date: $("#sessionDate").value,
     time: $("#sessionTime").value,
@@ -193,23 +230,109 @@ function saveSession(event) {
     duration: Number($("#sessionDuration").value),
     fee: Number($("#sessionFee").value),
     payment: $("#sessionPayment").value,
+    prepaidApplied: 0,
     note: $("#sessionNote").value.trim()
   };
-  const index = state.sessions.findIndex((item) => item.id === id);
-  if (index >= 0) state.sessions[index] = session;
-  else state.sessions.push(session);
-  persist(index >= 0 ? "Session updated" : "Session added");
+  const student = studentFor(baseSession.studentId);
+  if (!student) return;
+
+  if (existing) {
+    const duplicate = state.sessions.some((item) => item.id !== existing.id && item.studentId === baseSession.studentId && item.date === baseSession.date && item.time === baseSession.time);
+    if (duplicate) { showToast("That student already has a lesson at this time"); return; }
+    const refundable = existing.studentId === student.id ? Number(existing.prepaidApplied || 0) : 0;
+    if (baseSession.payment === "prepaid" && Number(student.creditBalance) + refundable < baseSession.fee) {
+      showToast(`Only ${money(Number(student.creditBalance) + refundable)} prepaid credit is available`);
+      return;
+    }
+    refundPrepaid(existing);
+    const updated = { ...baseSession, id: existing.id, seriesId: existing.seriesId || "" };
+    applyPayment(updated, false);
+    state.sessions[state.sessions.findIndex((item) => item.id === existing.id)] = updated;
+    persist("Session updated");
+  } else {
+    const repeat = $("#sessionRepeat").checked;
+    const dates = repeat ? weeklyDates(baseSession.date, $("#sessionRepeatUntil").value) : [baseSession.date];
+    if (!dates.length) { showToast("Choose a recurrence end date on or after the first lesson"); return; }
+    if (dates.length > 53) { showToast("Weekly bookings are limited to one year at a time"); return; }
+    const uniqueDates = dates.filter((date) => !state.sessions.some((item) => item.studentId === baseSession.studentId && item.date === date && item.time === baseSession.time));
+    if (!uniqueDates.length) { showToast("Those weekly lessons already exist"); return; }
+    if (!repeat && baseSession.payment === "prepaid" && Number(student.creditBalance) < baseSession.fee) {
+      showToast(`Only ${money(student.creditBalance)} prepaid credit is available`);
+      return;
+    }
+    const seriesId = repeat ? uid("series") : "";
+    let prepaidCount = 0;
+    let unpaidCount = 0;
+    uniqueDates.forEach((date) => {
+      const session = { ...baseSession, id: uid("ses"), date, seriesId };
+      if (applyPayment(session, repeat)) prepaidCount += 1;
+      if (session.payment === "unpaid") unpaidCount += 1;
+      state.sessions.push(session);
+    });
+    const skipped = dates.length - uniqueDates.length;
+    let message = repeat ? `${uniqueDates.length} weekly sessions added` : "Session added";
+    if (prepaidCount) message += ` · ${prepaidCount} from credit`;
+    if (unpaidCount && baseSession.payment === "prepaid") message += ` · ${unpaidCount} to pay`;
+    if (skipped) message += ` · ${skipped} duplicate skipped`;
+    persist(message);
+  }
   $("#sessionModal").close();
-  const chosenDate = new Date(`${session.date}T12:00:00`);
+  const chosenDate = new Date(`${baseSession.date}T12:00:00`);
   visibleMonth = new Date(chosenDate.getFullYear(), chosenDate.getMonth(), 1);
   renderAll();
+}
+
+function applyPayment(session, allowPrepaidFallback) {
+  if (session.payment !== "prepaid") return false;
+  const student = studentFor(session.studentId);
+  if (student && Number(student.creditBalance) >= Number(session.fee)) {
+    student.creditBalance = Number(student.creditBalance) - Number(session.fee);
+    session.prepaidApplied = Number(session.fee);
+    return true;
+  }
+  if (allowPrepaidFallback) session.payment = "unpaid";
+  return false;
+}
+
+function refundPrepaid(session) {
+  const amount = Number(session?.prepaidApplied || 0);
+  const student = session ? studentFor(session.studentId) : null;
+  if (student && amount > 0) student.creditBalance = Number(student.creditBalance) + amount;
+}
+
+function weeklyDates(startDate, endDate) {
+  if (!startDate || !endDate) return [];
+  const cursor = new Date(`${startDate}T12:00:00`);
+  const end = new Date(`${endDate}T12:00:00`);
+  const dates = [];
+  while (cursor <= end && dates.length <= 53) {
+    dates.push(isoDate(cursor));
+    cursor.setDate(cursor.getDate() + 7);
+  }
+  return dates;
+}
+
+function syncRepeatUntil() {
+  const startValue = $("#sessionDate").value || isoDate(new Date());
+  const start = new Date(`${startValue}T12:00:00`);
+  const suggested = new Date(start);
+  suggested.setDate(suggested.getDate() + 56);
+  $("#sessionRepeatUntil").min = startValue;
+  if (!$("#sessionRepeatUntil").value || $("#sessionRepeatUntil").value < startValue) $("#sessionRepeatUntil").value = isoDate(suggested);
 }
 
 function saveStudent(event) {
   event.preventDefault();
   const id = $("#studentId").value || uid("stu");
-  const student = { id, name: $("#studentName").value.trim(), subject: $("#studentSubject").value };
   const index = state.students.findIndex((item) => item.id === id);
+  const student = {
+    ...(index >= 0 ? state.students[index] : { creditBalance: 0 }),
+    id,
+    name: $("#studentName").value.trim(),
+    subject: $("#studentSubject").value,
+    parentName: $("#studentParent").value.trim(),
+    whatsapp: $("#studentWhatsapp").value.trim()
+  };
   if (index >= 0) state.students[index] = student;
   else state.students.push(student);
   persist(index >= 0 ? "Student updated" : "Student added");
@@ -217,9 +340,22 @@ function saveStudent(event) {
   renderAll();
 }
 
+function saveCredit(event) {
+  event.preventDefault();
+  const student = studentFor($("#creditStudentId").value);
+  const amount = Number($("#creditAmount").value);
+  if (!student || amount <= 0) return;
+  student.creditBalance = Number(student.creditBalance) + amount;
+  state.creditTransactions.push({ id: uid("credit"), studentId: student.id, amount, date: $("#creditDate").value, note: $("#creditNote").value.trim() });
+  persist(`${money(amount)} credit added for ${student.name}`);
+  $("#creditModal").close();
+  renderAll();
+}
+
 function deleteSession() {
   const id = $("#sessionId").value;
   if (!id || !window.confirm("Delete this session? This cannot be undone.")) return;
+  refundPrepaid(state.sessions.find((session) => session.id === id));
   state.sessions = state.sessions.filter((session) => session.id !== id);
   persist("Session deleted");
   $("#sessionModal").close();
@@ -228,11 +364,14 @@ function deleteSession() {
 
 function deleteStudent() {
   const id = $("#studentId").value;
+  const student = studentFor(id);
   const count = state.sessions.filter((session) => session.studentId === id).length;
-  const detail = count ? ` This will also delete ${count} linked session${count === 1 ? "" : "s"}.` : "";
+  const credit = Number(student?.creditBalance || 0);
+  const detail = `${count ? ` This will also delete ${count} linked session${count === 1 ? "" : "s"}.` : ""}${credit ? ` ${money(credit)} prepaid credit will also be removed.` : ""}`;
   if (!id || !window.confirm(`Delete this student?${detail}`)) return;
   state.students = state.students.filter((student) => student.id !== id);
   state.sessions = state.sessions.filter((session) => session.studentId !== id);
+  state.creditTransactions = state.creditTransactions.filter((transaction) => transaction.studentId !== id);
   persist("Student deleted");
   $("#studentModal").close();
   renderAll();
@@ -275,6 +414,12 @@ function escapeHtml(value) {
   return String(value).replace(/[&<>'"]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[character]));
 }
 
+function whatsappHref(value) {
+  let digits = String(value).replace(/\D/g, "");
+  if (digits.startsWith("0")) digits = `27${digits.slice(1)}`;
+  return `https://wa.me/${digits}`;
+}
+
 $("#menuButton").addEventListener("click", openDrawer);
 $("#closeMenuButton").addEventListener("click", closeDrawer);
 $("#drawerScrim").addEventListener("click", closeDrawer);
@@ -288,6 +433,7 @@ $("#addSessionButton").addEventListener("click", () => openSessionModal());
 $("#addStudentButton").addEventListener("click", () => openStudentModal());
 $("#sessionForm").addEventListener("submit", saveSession);
 $("#studentForm").addEventListener("submit", saveStudent);
+$("#creditForm").addEventListener("submit", saveCredit);
 $("#deleteSessionButton").addEventListener("click", deleteSession);
 $("#deleteStudentButton").addEventListener("click", deleteStudent);
 $("#sessionStudent").addEventListener("change", (event) => {
@@ -296,6 +442,12 @@ $("#sessionStudent").addEventListener("change", (event) => {
 });
 $("#sessionDuration").addEventListener("change", (event) => {
   $("#sessionFee").value = Math.round(Number(event.target.value) * RATE);
+});
+$("#sessionDate").addEventListener("change", syncRepeatUntil);
+$("#sessionRepeat").addEventListener("change", (event) => {
+  $("#repeatUntilLabel").classList.toggle("hidden", !event.target.checked);
+  $("#sessionRepeatUntil").required = event.target.checked;
+  if (event.target.checked) syncRepeatUntil();
 });
 
 $("#calendarGrid").addEventListener("click", (event) => {
@@ -314,8 +466,15 @@ $("#calendarGrid").addEventListener("keydown", (event) => {
 $("#studentList").addEventListener("click", (event) => {
   const edit = event.target.closest("[data-edit-student]");
   const book = event.target.closest("[data-book-student]");
+  const topup = event.target.closest("[data-topup-student]");
   if (edit) openStudentModal(edit.dataset.editStudent);
   if (book) openSessionModal(isoDate(new Date()), book.dataset.bookStudent);
+  if (topup) openCreditModal(topup.dataset.topupStudent);
+});
+
+$("#creditPanel").addEventListener("click", (event) => {
+  const topup = event.target.closest("[data-topup-student]");
+  if (topup) openCreditModal(topup.dataset.topupStudent);
 });
 
 $("#paymentList").addEventListener("click", (event) => {
