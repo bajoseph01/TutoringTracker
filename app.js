@@ -2,11 +2,7 @@ const STORAGE_KEY = "tutoringTracker.v1";
 const RATE = 200;
 
 const defaultState = {
-  students: [
-    { id: "stu-liam", name: "Liam Botha", subject: "Maths" },
-    { id: "stu-zoe", name: "Zoë Jacobs", subject: "Afrikaans" },
-    { id: "stu-ama", name: "Ama Dlamini", subject: "Maths" }
-  ],
+  students: [],
   sessions: []
 };
 
